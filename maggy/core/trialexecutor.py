@@ -11,6 +11,8 @@ from pyspark import TaskContext
 from hops import hdfs as hopshdfs
 import tensorflow as tf
 
+import sys
+
 if config.tf_version >= 2:
     from tensorboard.plugins.hparams import api_pb2
     from tensorboard.plugins.hparams import summary
@@ -51,7 +53,23 @@ def _prepare_func(app_id, run_id, experiment_type, map_fun, server_addr, hb_inte
         # override the builtin print
         __builtin__.print = maggy_print
 
+
+        class PrintHook:
+
+          def __init__(self):
+              pass
+
+          def write(self,text):
+              reporter.log(text)
+
+          def flush(self):
+              pass
+
+
         try:
+            sys.stdout = PrintHook()
+            sys.stderr = sys.stdout
+
             client_addr = client.client_addr
 
             host_port = client_addr[0] + ":" + str(client_addr[1])
@@ -126,5 +144,7 @@ def _prepare_func(app_id, run_id, experiment_type, map_fun, server_addr, hb_inte
             reporter.fd.close()
             client.stop()
             client.close()
+            sys.stdout = sys.__stdout__
+            sys.stderr = sys.__stderr__
 
     return _wrapper_fun
